@@ -1,0 +1,113 @@
+\documentclass[letterpaper,10pt,draftclsnofoot,onecolumn]{IEEEtran}
+
+\usepackage{graphicx}                                     
+\usepackage{amssymb}                                         
+\usepackage{amsmath}                                         
+\usepackage{amsthm}                                          
+
+\usepackage{alltt}                                           
+\usepackage{float}
+\usepackage{color}
+\usepackage{url}
+
+\usepackage{balance}
+\usepackage[TABBOTCAP, tight]{subfigure}
+\usepackage{enumitem}
+\usepackage{pstricks, pst-node}
+
+\usepackage{textcomp}
+\usepackage[margin=0.75in]{geometry}
+
+\parindent = 0.0 in
+\parskip = 0.1 in
+
+\begin{document}
+
+\title{Project 1: Getting Acquainted}
+
+\author{
+\IEEEauthorblockN{Kevin Guan}
+\IEEEauthorblockN{George Crary}
+\IEEEauthorblockA{\\Operating Systems II\\Group 13-08\\Spring 2017}
+}
+
+\maketitle
+\begin{abstract}
+This paper discusses the processes that were practiced in the first project for the CS444
+class. The topics included the Linux Kernel and the learning of parallelism within an operating 
+system. The Linux Kernel was explored via learning how to configure Qemu. For parallelism, we
+learned the fundamentals of threading to solve a given concurrency problem. 
+\end{abstract}
+\pagebreak
+
+\section{Command Log for Linux Kernel and Qemu}
+\subsection{Terminal One}
+\begin{enumerate}
+\item cd /scratch/spring2017
+\item mkdir 13-08
+\item cd 13-08
+\item git clone git://git.yoctoproject.org/linux-yocto-3.14
+\item cd linux-yocto- 3.14
+\item git checkout v3.14.26
+\item source /scratch/opt/environment-setup-i586-poky-linux.csh
+\item cp /scratch/spring2017/files/config-3.14.26-yocto-qemu .config
+\item make menuconfig
+\item make -j4 all
+\item cd ..
+\item gdb
+\item target remote :6808
+\item continue
+\end{enumerate}
+
+\subsection{Terminal Two}
+\begin{enumerate}
+\item cp /scratch/spring2017/files/bzImage-qemux86.bin .
+\item cp /scratch/spring2017/files/core-image- lsb-sdk-qemux86.ext3 .
+\item qemu-system- i386 -gdb tcp::6808 -S -nographic -kernel bzImage-qemux86.bin -drive file=core-image- lsb-sdk- qemux86.ext3,if=virtio -enable-kvm -net none -usb -localtime -- no-reboot -- append "root=/dev/vda rw console=ttyS0 debug"
+\item qemu-system- i386 -gdb tcp::6808 -S -nographic -kernel linux-yocto- 3.14/arch/x86/boot/bzImage  -drive file=core-image- lsb-sdk- qemux86.ext3,if=virtio -enable- kvm -net none -usb -localtime -- no-reboot -- append "root=/dev/vda rw console=ttyS0 debug"
+\end{enumerate}
+
+\section{Explanation of the Flags in the Qemu Command-Line}
+
+
+\section{Concurrency: The Producer-Consumer Problem}
+\subsection{What do you think the main point of this assignment is?}
+The main purpose of this assignment is to familiarize ourselves and build a stronger understanding with 
+the concepts of parallelism via the application of pthreads. It also brings to light the importance of the 
+necessary procedures, like locks, that must take place during multi-process operations.
+\subsection{How did you personally approach the problem? Design decisions, algorithm, etc.}
+In the beginning of process, the first priority was pinpointing and noting the restraints and expectations for the problem.
+This process required reading the instructions numerous times and drawing several flow charts of the different functionalities that will
+lead to the expected output. From there, the different parts of the problem were compartmentalized and focused individually on seperate time blocks.
+The initial part of the assignment involved setting up the structs with the parameters that were given on the instructions. Afterwards,
+the process became trickier as pthreads, rdrand, and Marsenne Twister were foreign territory. As a result, the topics were researched thoroughly
+and made progress as we slowly grew more familiar with the concepts alongside much trial and error. 
+\subsection{How did you ensure your solution was correct? Testing details, for instance.}
+For testing, the buffer was decreased to very small value in order to better observe its functionalities at a micro scale. This practice allowed for 
+better observation of the blocking that needs to take place if the buffer is empty or full. To better understand of the processes that take place,
+print statements were also placed to better identify when specific actions were done or not done as intended.
+\subsection{What did you learn?}
+One of the lessons from completing the concurrency is a stronger understanding of working with paralleism via applying pthreads. Another 
+interesting aspect that was learned was the application of rdrand and the potential of its powerful randomization application. 
+
+\section{Version Control Log}
+\begin{tabular}{|p{0.3\linewidth}|p{0.3\linewidth}|}
+\hline
+\textbf{Date}&\textbf{Changes}\\
+\hline
+4/12/16 & Started assignment\\
+\hline
+
+\end{tabular}
+
+\section{Work Log}
+\begin{tabular}{|p{0.3\linewidth}|p{0.3\linewidth}|p{0.3\linewidth}|}
+\hline
+\textbf{Date}&\textbf{Task}&\textbf{Detail}\\
+\hline
+4/12/16 & Started Stuyding the Threads & Got there\\
+\hline
+
+\end{tabular}
+
+\end{document}
