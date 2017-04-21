@@ -26,9 +26,9 @@
 \title{Project 1: Getting Acquainted}
 
 \author{
-\IEEEauthorblockN{Kevin Guan}
+\IEEEauthorblockN{Kevin Guan,}
 \IEEEauthorblockN{George Crary}
-\IEEEauthorblockA{\\Operating Systems II\\Group 13-08\\Spring 2017}
+\IEEEauthorblockA{\\Group 13-08\\Operating Systems II\\Spring 2017}
 }
 
 \maketitle
@@ -36,7 +36,8 @@
 This paper discusses the processes that were practiced in the first project for the CS444
 class. The topics included the Linux Kernel and the learning of parallelism within an operating 
 system. The Linux Kernel was explored via learning how to configure Qemu. For parallelism, we
-learned the fundamentals of threading to solve a given concurrency problem. 
+learned the fundamentals of multi-threading via the pthread API to solve the given concurrency problem,
+which was called as the Producer-Consumer Problem. 
 \end{abstract}
 \pagebreak
 
@@ -68,7 +69,30 @@ learned the fundamentals of threading to solve a given concurrency problem.
 \end{enumerate}
 
 \section{Explanation of the Flags in the Qemu Command-Line}
-
+\begin{itemize}
+\item -gdb tcp::6808\\
+gdb takes in a network protocol and a port of the form $tcp::6808$ for example and sets up a gdbserver and waits for a remote connection. This connection can be started from within gdb by running the command, target remote port number.
+\item -S\\
+This option starts the VM in a paused state forcing a continue input from the user. In our case we do run the `continue` command from within our remote gdb connection to do so.
+\item -nographic\\
+It disables the SDL based graphical backend and reverts the utility to a simple terminal based application, the emulated serial output.
+\item -kernel linux-yocto-3.14/arch/x86/boot/bzImage\\
+The -kernel flag lets us specifcy which Linux kernel we would like to boot instead of making us bake the kernel into the diskimage. This effectively lets us make quick changes to the kernel for rapid debugging purposes. For this option we supply it with the yocto build we have compiled.
+\item -drive file=core-image-lsb-sdk-qemux86.ext3,if=virtio\\
+The drive file gives us the ability to specify which disk image we'd like the vm to run with. The if=virtio sub option instructs the drive to behave as a full virtualization drive that is optimized to work with the underlying virtual machine host. This prevents the drive from performing as if its depending on a physical disk.
+\item -enable-kvm\\
+This enables the Kernel based virtual machine support withn qemu allowing for kernel specific options to be used. The KVM model provides are more native experience/performance for the guest VM's compared to other models of virtualization.
+\item -net none\\
+The net option is intended to create a network interface card for the guest vm to use. In our case that is not needed thus we provide it with the none value to prevent a NIC from being created.
+\item -usb\\
+The usb flag enables the USB driver to be used by the guest vm.
+\item -localtime\\
+This flag syncs the guest vm's clock to the localtime of the host machine.
+\item -- no-reboot\\
+The no reboot flag prevents the vm from rebooting and forces it to simply exit. This lets us shut the down vm with reboot from within the guest if needed.
+\item -- append "root=/dev/vda rw console=ttyS0 debug"\\
+The append command accepts a string that gets appended to the kernel as boot options. In our case `root=/dev/vda` moves the root partition to the Virtio virtual disk that we setup earlier as read-writable. Then the `console=ttyS0` option sets the console to use the ttyS0 serial port that gets emulated. Finally the `debug` command enables kernel debugging at the event logs level.
+\end{itemize}
 
 \section{Concurrency: The Producer-Consumer Problem}
 \subsection{What do you think the main point of this assignment is?}
@@ -81,13 +105,15 @@ This process required reading the instructions numerous times and drawing severa
 lead to the expected output. From there, the different parts of the problem were compartmentalized and focused individually on seperate time blocks.
 The initial part of the assignment involved setting up the structs with the parameters that were given on the instructions. Afterwards,
 the process became trickier as pthreads, rdrand, and Marsenne Twister were foreign territory. As a result, the topics were researched thoroughly
-and made progress as we slowly grew more familiar with the concepts alongside much trial and error. 
+and made progress as we slowly grew more familiar with the concepts alongside much trial and error. Lawrence Livermore National Laboratory's tutorial
+on pthreads was a valuable resource for learning the different functions and architecture within the pthreads API. Once the fundamentals of pthreads were 
+grasped, the rest of the implementation followed smoothly with the buffer, producer, and consumer. 
 \subsection{How did you ensure your solution was correct? Testing details, for instance.}
 For testing, the buffer was decreased to very small value in order to better observe its functionalities at a micro scale. This practice allowed for 
 better observation of the blocking that needs to take place if the buffer is empty or full. To better understand of the processes that take place,
 print statements were also placed to better identify when specific actions were done or not done as intended.
 \subsection{What did you learn?}
-One of the lessons from completing the concurrency is a stronger understanding of working with paralleism via applying pthreads. Another 
+One of the lessons from completing the concurrency is a stronger understanding of working with parallelism via applying pthreads. Another 
 interesting aspect that was learned was the application of rdrand and the potential of its powerful randomization application. 
 
 \section{Version Control Log}
@@ -95,19 +121,47 @@ interesting aspect that was learned was the application of rdrand and the potent
 \hline
 \textbf{Date}&\textbf{Changes}\\
 \hline
-4/12/16 & Started assignment\\
+4/12/16 & setup structs \\
 \hline
-
+4/13/16 & added signal handling and mersenne twister \\
+\hline
+4/13/16 & added rdrand \\
+\hline
+4/14/16 & started pthread initiations \\
+\hline
+4/14/16 & finalized buffer parameters \\
+\hline
+4/15/16 & producer function implementation \\
+\hline
+4/15/16 & fixed bug with buffer \\
+\hline
+4/15/16 & consumer function implementation \\
+\hline
+4/15/16 & added compatibility check to use rdrand or twister \\
+\hline
+4/17/16 & finalized, fixed print typos, added extra comments \\
 \end{tabular}
 
 \section{Work Log}
 \begin{tabular}{|p{0.3\linewidth}|p{0.3\linewidth}|p{0.3\linewidth}|}
 \hline
-\textbf{Date}&\textbf{Task}&\textbf{Detail}\\
+\textbf{Date}&\textbf{Duration}&\textbf{Detail}\\
 \hline
-4/12/16 & Started Stuyding the Threads & Got there\\
+4/12/16 & 30 minutes & Started small progress on concurrency 1. Created flow diagrams for planning next steps.\\
 \hline
-
+4/13/16 & 1 hour, 30 minutes & Implemented signal handling, Mersenne Twister, and rdrand \\
+\hline
+4/14/16 & 3 hours, 30 minutes & Studied and started work on pthread and buffer implementations \\
+\hline
+4/15/16 & 2 hours, 30 minutes & Completed main parts of producer and consumer functions \\
+\hline
+4/17/16 & 30 minutes & Tidied up C code \\
+\hline
+4/17/16 & 2 hours & Implemented Linux Kernel and Qemu \\
+\hline
+4/19/16 & 2 hours, 30 minutes & Started work on report \\
+\hline
+4/20/16 & 1 hour, 30 minutes & Finalized report and created makefile \\
 \end{tabular}
 
 \end{document}
