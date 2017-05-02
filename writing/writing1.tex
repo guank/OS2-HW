@@ -22,6 +22,19 @@
 \parindent = 0.0 in
 \parskip = 0.1 in
 
+\lstdefinestyle{customc}{
+  belowcaptionskip=1\baselineskip,
+  breaklines=true,
+  frame=L,
+  xleftmargin=\parindent,
+  language=C,
+  showstringspaces=false,
+  basicstyle=\footnotesize\ttfamily,
+  keywordstyle=\bfseries\color{green!40!black},
+  commentstyle=\itshape\color{purple!40!black},
+  identifierstyle=\color{blue},
+  stringstyle=\color{orange},
+}
 
 \begin{document}
 
@@ -41,27 +54,21 @@ Between the Windows, Linux and FreeBSD operating systems many similarities exist
 \tableofcontents
 \pagebreak
 \section{Processes}
-Processes throughout the operatings systems contain a large amount of similarities. Throughout the implementations of such concept all of them share such things as program code, open file descriptors, signaling and threading facilities. In addition other living aspects of the program are stored in a process such as run time, threads that are being executed, a data section for global variables and a private virtual address space for its given threads. Information for the CPU scheduler is also maintained within the process data structure as well. For FreeBSD and Linux these similarities are contained in their respective $task_struct$ data structure and are very similar as result of being Unix derivatives. In Windows these details are contained in the Windows Executive Process structure, also known as the EPROCESS structure. On top of that some process related data in Windows such as the Process Environment Block live in userland address space for accessibility reasons which is another difference \cite{russinovich}.\\
+Processes throughout the operatings systems contain a large amount of similarities. Throughout the implementations of such concept all of them share such things as program code, open file descriptors, signaling and threading facilities. In addition other living aspects of the program are stored in a process such as run time, threads that are being executed, a data section for global variables and a private virtual address space for its given threads. Information for the CPU scheduler is also maintained within the process data structure as well. For FreeBSD and Linux these similarities are contained in their respective task\textunderscore struct data structure and are very similar as result of being Unix derivatives. In Windows these details are contained in the Windows Executive Process structure, also known as the EPROCESS structure. On top of that some process related data in Windows such as the Process Environment Block live in userland address space for accessibility reasons which is another difference \cite{russinovich}.\\
 Within the Unix realms FreeBSD and Linux both begin new processes with a fork system call. The fork calling process is turned into a parent process while the newly forked process is called a child process. In FreeBSD this can involve the rfork system call, which can handle controlling which resources get shared between the parent and child, while on Linux this is similarly handled with the clone system call \cite{love}. Once the child process is up and running an exec system call can be made to run an entirely different program. This exec call overlays the program into the program’s address space and begins executing it. The separation of these two system calls allows for any necessary preparation and cleanup to take place before the new program runs. Windows handles process creation in a similar fashion however it’s much more streamlined. Within Windows CreateProcess gets called and handles identifying the application type. As Windows supports executing Win16, Posix, MS-DOS executables these must be handled additionally with the standard exe executables. In those respective situations the appropriate Windows support image is executed and handled from there \cite{russinovich}. These differences between process creation really speak to the philosophical differences of the operating systems. The fork and exec system calls used in Linux and FreeBSD highlight the mindset of ''Do one thing right and do it well'' and showcases the composition of powerful and concise utilities. The Microsoft way of doing things showcases a commitment to backwards compatibility and total control by consolidating process creation into a single interface.
 \par
 
 \newpage
 \section{Threading}
 Threading is a common concept to all three operating systems. Significant differences begin to show however between Windows and the Unix related operating systems. Even within the Unix family threading is different. Threads are a facility for multiple paths of execution for a given process to occur at a single time while allowing for process resources to be shared. On a multicore machine this means threads can run in parallel potentially which enables a concurrent model of programming for a process. Within the Linux world threads are just seen as special processes and aren’t scheduled in a particularly different way. Within FreeBSD threads are looked upon as lightweight processes as context switching between threads is considerably faster than a context switch between processes \cite{mccusick}. Windows has a similar notion of threads as lightweight processes but also provides a userland scheduled threading facility called Fibers and another concept known as jobs. Jobs simply represent a collection of processes that are to be managed together.\\
-
 Across the Unix systems the threading support is largely standardized thanks to POSIX’s pthreads library.\\
-
+\lstinputlisting[caption=Small Pthreads example in the Unix environment., style=customc]{pthread_example.c}
 One of the largest similarities between the three operating systems when it comes to threading is the User mode and Kernel mode distinction. Threads can operate in either User mode and Kernel mode and have their own respective access levels to address spaces. The user mode limitations to address space can help protect the operating system from exploitation in the event a server thread executing on the behalf of a client goes rogue. Separate stacks for these modes are given to threads as well in order for kernel specific operations to be cleanly supported from user mode operations.
-
 \newpage
 \section{CPU Scheduling}
 CPU Scheduling is a common source of difference between the three operating systems. As the operating system must schedule the order of processes and thread operation across limited computing resources different approaches arise. Each operating system provides facilities for giving processes and threads different levels of priorities. In Linux for example this consists of a niceness value ranging from -20 to +19 with 0 as the default value. In FreeBSD this value ranges from 0 to 255 with different priority classes existing to serve the needs of user mode and kernel mode threads. Windows implements priority across the range 0 to 32 with the greater half representing real time priority levels and the lower end representing variable levels with 0 reserved for the zero page thread \cite{russinovich}.\\
-
-The schedulers behind each of these operating systems are drastically different. After Linux kernel version 2.5 was released a constant time scheduler, also known as the O(1) scheduler), was used. This scheduler could determine the next process to be ran in constant time. This behavior benefited high process count workloads seen on big iron workstations for example as the previous algorithm wasted a lot of time running in linear time. By version 2.6 this was changed to a new scheduler named CFS, the completely fair scheduler \cite{love}. To handle scheduling fairness better CFS divides the processor time uniformly across N processes and then weighs given times appropriately with respect to the relative nice values.\\
-
-FreeBSD uses the ULE scheduler which is named after a filename pun. This scheduler is divided into two schedulers. The low level scheduler and the high level scheduler. The former handles selecting a new thread to run from a non-empty run queue in a round robin fashion whenever a thread blocks \cite{mccusick}. The high level scheduler handles run queues for each CPU and maintaining the thread priorities. The Windows scheduler is similar to the ULE scheduler in terms of its high level CPU concerns and low level task picking. In Window’s case however processor affinity is used to handle the high level case of where a thread may be executed.
-
-
+The schedulers behind each of these operating systems are drastically different. After Linux kernel version 2.5 was released a constant time scheduler, also known as the O(1) scheduler, was used. This scheduler could determine the next process to be ran in constant time. This behavior benefited high process count workloads seen on big iron workstations for example as the previous algorithm wasted a lot of time running in linear time. By version 2.6 this was changed to a new scheduler named CFS, the completely fair scheduler \cite{love}. To handle scheduling fairness better CFS divides the processor time uniformly across N processes and then weighs given times appropriately with respect to the relative nice values.\\
+FreeBSD uses the ULE scheduler which is named after a filename pun. This scheduler is divided into two schedulers. The low level scheduler and the high level scheduler. The former handles selecting a new thread to run from a non-empty run queue in a round robin fashion whenever a thread blocks \cite{mccusick}. The high level scheduler handles run queues for each CPU and maintaining the thread priorities. The Windows scheduler is similar to the ULE scheduler in terms of its high level CPU concerns and low level task picking. In Window`s case however processor affinity is used to handle the high level case of where a thread may be executed.
 \newpage
 \bibliographystyle{IEEEtran}
 \bibliography{ref}
