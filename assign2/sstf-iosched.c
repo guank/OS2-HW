@@ -60,13 +60,17 @@ static int sstf_dispatch(struct request_queue *q, int force)
 
 		//rq = list_entry(nd->queue.next, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		//Update read head sector posistion. Current sector + bytes remaining in the request.
+		//Update read head sector posistion to where itll end up. Current sector + bytes remaining in the request.
 		nd->head_loc = blk_rq_pos(rq) + blk_rq_sectors(rq);
 		elv_dispatch_add_tail(q, rq);
 		printk("SSTF DISPATCHING %llu\n", nd->head_loc);
 
 		//elv_dispatch_sort(q, rq);
 		return 1;
+	}else{
+		//Empty case
+		printk("SSTF EMPTY!\n");
+		nd->dir = !nd->dir;
 	}
 	return 0;
 }
@@ -74,9 +78,27 @@ static int sstf_dispatch(struct request_queue *q, int force)
 static void sstf_add_request(struct request_queue *q, struct request *rq)
 {
 	struct sstf_data *nd = q->elevator->elevator_data;
-	//Maintains sorted order by adding to the tail.
+	struct request * next_rq, * prev_rq;
+	//Maintain by adding using insertion sort.
 	//printk("SSTF ADDING REQ %llu\n", (unsigned long long) blk_rq_pos(rq));
-	list_add_tail(&rq->queuelist, &nd->queue);
+	
+	if(!list_empty(&nd->queue)){
+		//Insertion sort case
+		next_rq = list_entry(nd->queue.next, struct request, queuelist);
+		prev_rq = list_entry(nd->queue.prev, struct request, queuelist);
+
+		//Loop through the list till we find a request higher than rq that we can place it behind.
+		while(blk_rq_pos(next_rq) < blk_rq_pos(rq)){
+			next_rq = list_entry(next_rq->queuelist.next, struct request, queuelist);
+			prev_rq = list_entry(prev_rq->queuelist.prev, struct request, queuelist);
+		}
+
+		list_add(&rq->queuelist, &prev_rq->queuelist);
+	}else{
+		//Empty list case
+		list_add(&rq->queuelist, &nd->queue);
+	}
+	//list_add_tail(&rq->queuelist, &nd->queue);
 }
 
 static struct request *
