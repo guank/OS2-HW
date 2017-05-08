@@ -27,12 +27,45 @@ static void sstf_merged_requests(struct request_queue *q, struct request *rq,
 static int sstf_dispatch(struct request_queue *q, int force)
 {
 	struct sstf_data *nd = q->elevator->elevator_data;
-
+	//printk("SSTF Begin dispatch");
 	if (!list_empty(&nd->queue)) {
-		struct request *rq;
-		rq = list_entry(nd->queue.next, struct request, queuelist);
+		struct request *rq, *next_rq, *prev_rq;
+
+		next_rq = list_entry(nd->queue.next, struct request, queuelist);
+		prev_rq = list_entry(nd->queue.next, struct request, queuelist);
+		//Check list to see if theres more than one req
+		if (next_rq == prev_rq) {
+			//One list entry case
+			rq = next_rq;
+		} else {
+			//Multiple entires case. Seeking must be handled.
+			if (nd->dir == FORWARD){
+				//Forward Search
+				if(nd->head_loc < blk_rq_pos(next_rq)) {
+					rq = next_rq;
+				}else {
+					nd->dir = BACKWARD;
+					rq = prev_rq;
+				}
+			}else{
+				//Backward Search
+				if(nd->head_loc > blk_rq_pos(prev_rq)) {
+					rq = prev_rq;
+				} else {
+					nd->dir = FORWARD;
+					rq = next_rq;
+				}
+			}
+		}
+
+		//rq = list_entry(nd->queue.next, struct request, queuelist);
 		list_del_init(&rq->queuelist);
-		elv_dispatch_sort(q, rq);
+		//Update read head sector posistion. Current sector + bytes remaining in the request.
+		nd->head_loc = blk_rq_pos(rq) + blk_rq_sectors(rq);
+		elv_dispatch_add_tail(q, rq);
+		printk("SSTF DISPATCHING %llu\n", nd->head_loc);
+
+		//elv_dispatch_sort(q, rq);
 		return 1;
 	}
 	return 0;
@@ -42,7 +75,7 @@ static void sstf_add_request(struct request_queue *q, struct request *rq)
 {
 	struct sstf_data *nd = q->elevator->elevator_data;
 	//Maintains sorted order by adding to the tail.
-	printk("SSTF ADDING REQ %llu\n", (unsigned long long) blk_rq_pos(rq));
+	//printk("SSTF ADDING REQ %llu\n", (unsigned long long) blk_rq_pos(rq));
 	list_add_tail(&rq->queuelist, &nd->queue);
 }
 
