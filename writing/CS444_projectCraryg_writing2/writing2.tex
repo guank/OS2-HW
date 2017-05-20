@@ -90,7 +90,7 @@ Across both Unix and Windows a device interaction interface is provided. Within 
 \section{Async IO}
 Asynchronous IO is also a facility provided by the Windows and the ‘Nix’s on top of regular IO. Also known as Async IO, it allows for a program to dispatch an IO request and continue execution. FreeBSD and Linux are extremely similar in this aspect as they both implement the POSIX api for async io. Windows on the other hand provides support for this using IRP, known as I/O request packets. Attached is the facilities provided within the Posix for Aysnc IO.\\
 
-\lstinputlisting[caption=POSIX AsyncIO source for Linux., style=customc]{linuxAIO.c}
+\lstinputlisting[caption=POSIX AsyncIO example., style=customc]{linuxAIO.c}
 
 \section{Dynamically Loadable Modules}
 Between both Windows and the Unix’s facilities for dynamically loaded modules are available. In Windows these are called dynamically linked libraries, aka DLL’s, and within Linux these are are called shared object files (with the .so extension). The advantage of dynamically loaded modules is that they can expose and provide system functionality between multiple programs without requiring the duplication of static code. Without DLL’s or shared objects each program binary would involve lugging around its own library code which would increase the overall size of all binaries throughout the system. Additionally when multiple drivers mutually use common functions this is called stacked device drivers. This concept is common to Windows, Linux and FreeBSD.\\
@@ -102,7 +102,7 @@ When it comes to scheduling IO operations stark differences between the operatin
 In terms of physical device features Disk Hibernation is a common feature to all three operating systems. Disk Hibernation consists of the saving the operating system’s to disk and powering it off during periods of long inactivity to conserve power. This can be useful for spare drives on a system that aren’t in use as there’s no reason to keep spinning platters.\\
 
 In Windows however this a much more prominent feature as Windows in general had an early lifecycle targeted more towards your average consumer, laptops including, so power consumption is a larger focus. This is in contrast to the server mainframe customer base of Unix’s early history where time.\\
-
+\newpage
 \bibliographystyle{IEEEtran}
 \bibliography{ref}
 \end{document}
