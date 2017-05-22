@@ -90,7 +90,7 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
         printk("< sbd.c sbd_transfer() > Writing to %p\n", src);
         printk("< sbd.c sbd_transfer() > Begin writing ciphertext\n");
 
-        for(i = 0; i < nbytes; i += cblocksize) {
+        for(i = 0; i < nbytes; i += crypto_cipher_blocksize(tfm)) {
             crypto_cipher_encrypt_one(tfm, dev->data + offset + i, buffer + i);
         }
 
@@ -115,8 +115,8 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
         printk("< sbd.c sbd_transfer() > Reading from %p\n", dest);
         printk("< sbd.c sbd_transfer() > Begin reading ciphertext\n");
 
-        for(i = 0; i < nbytes; i += cblocksize) {
-            crypto_cipher_decrypt_one(tfm, dev->data + offset + i, buffer + i);
+        for(i = 0; i < nbytes; i += crypto_cipher_blocksize(tfm)) {
+            crypto_cipher_decrypt_one(tfm, buffer + i, dev->data + offset + i);
         }
 
 
@@ -183,13 +183,14 @@ static int __init sbd_init(void) {
 	 * Set up our internal device.
 	 */
 	Device.size = nsectors * logical_block_size;
-	spin_lock_init(&Device.lock);
 	Device.data = vmalloc(Device.size);
 	if (Device.data == NULL)
 		return -ENOMEM;
+
 	/*
 	 * Get a request queue.
 	 */
+	spin_lock_init(&Device.lock);
 	Queue = blk_init_queue(sbd_request, &Device.lock);
 	if (Queue == NULL)
 		goto out;
