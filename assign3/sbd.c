@@ -66,14 +66,70 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
 	unsigned long offset = sector * logical_block_size;
 	unsigned long nbytes = nsect * logical_block_size;
 
+    u8 * dest;
+    u8 * src;
+    unsigned int cblocksize = 0;
+    if (crypto_cipher_setkey(tfm, key, keylen) == 0) {
+        printk("< sbd.c sbd_transfer() > Cipher secret is set\n");
+        cblocksize = crypto_cipher_blocksize(tfm)
+    } else {
+        printk("< sbd.c sbd_transfer() > Cipher secret is unset\n");
+    }
+
 	if ((offset + nbytes) > dev->size) {
 		printk (KERN_NOTICE "sbd: Beyond-end write (%ld %ld)\n", offset, nbytes);
 		return;
 	}
-	if (write)
-		memcpy(dev->data + offset, buffer, nbytes);
-	else
-		memcpy(buffer, dev->data + offset, nbytes);
+    int i;
+	if (write){
+		// memcpy(dev->data + offset, buffer, nbytes);
+        dest = dev->data + offset;
+        src = buffer;
+
+        printk("< sbd.c sbd_transfer() > Reading from %p\n", dest);
+        printk("< sbd.c sbd_transfer() > Writing to %p\n", src);
+        printk("< sbd.c sbd_transfer() > Begin writing ciphertext\n");
+
+        for(i = 0; i < nbytes; i += cblocksize) {
+            crypto_cipher_encrypt_one(tfm, dev->data + offset + i, buffer + i);
+        }
+
+        printk("< sbd.c sbd_transfer() > Plaintext:\n");
+        for(i = 0; i < 50; i++){
+            printk("%u", (unsigned) *dest++);
+        }
+
+        printk("\n< sbd.c sbd_transfer() > Ciphertext:\n");
+        for(i = 0; i < 50; i++){
+            printk("%u", (unsigned) *dest++);
+        }
+        printk("\n");
+
+
+    } else{
+		// memcpy(buffer, dev->data + offset, nbytes);
+        dest = dev->data + offset;
+        src = buffer;
+
+        printk("< sbd.c sbd_transfer() > Writing to %p\n", src);
+        printk("< sbd.c sbd_transfer() > Reading from %p\n", dest);
+        printk("< sbd.c sbd_transfer() > Begin reading ciphertext\n");
+
+        for(i = 0; i < nbytes; i += cblocksize) {
+            crypto_cipher_decrypt_one(tfm, dev->data + offset + i, buffer + i);
+        }
+
+
+        printk("\n< sbd.c sbd_transfer() > Ciphertext:\n");
+        for(i = 0; i < 50; i++){
+            printk("%u", (unsigned) *dest++);
+        }
+        printk("< sbd.c sbd_transfer() > Plaintext:\n");
+        for(i = 0; i < 50; i++){
+            printk("%u", (unsigned) *dest++);
+        }
+        printk("\n");
+    }
 }
 
 static void sbd_request(struct request_queue *q) {
