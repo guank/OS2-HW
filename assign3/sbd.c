@@ -68,10 +68,11 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
 
     u8 * dest;
     u8 * src;
+    int i;
     unsigned int cblocksize = 0;
     if (crypto_cipher_setkey(tfm, key, keylen) == 0) {
         printk("< sbd.c sbd_transfer() > Cipher secret is set\n");
-        cblocksize = crypto_cipher_blocksize(tfm)
+        cblocksize = crypto_cipher_blocksize(tfm);
     } else {
         printk("< sbd.c sbd_transfer() > Cipher secret is unset\n");
     }
@@ -80,7 +81,6 @@ static void sbd_transfer(struct sbd_device *dev, sector_t sector,
 		printk (KERN_NOTICE "sbd: Beyond-end write (%ld %ld)\n", offset, nbytes);
 		return;
 	}
-    int i;
 	if (write){
 		// memcpy(dev->data + offset, buffer, nbytes);
         dest = dev->data + offset;
