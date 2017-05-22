@@ -191,6 +191,7 @@ static int __init sbd_init(void) {
 	 * Get a request queue.
 	 */
 	spin_lock_init(&Device.lock);
+    printk("< sbd.c sbd_init() > Starting blk_init_queue\n");
 	Queue = blk_init_queue(sbd_request, &Device.lock);
 	if (Queue == NULL)
 		goto out;
@@ -203,6 +204,9 @@ static int __init sbd_init(void) {
 		printk(KERN_WARNING "sbd: unable to get major number\n");
 		goto out;
 	}
+
+    tfm = crypto_alloc_cipher("aes",0,0);
+    printk("< sbd.c sbd_init() > Starting gendisk structure\n");
 	/*
 	 * And the gendisk structure.
 	 */
@@ -218,7 +222,6 @@ static int __init sbd_init(void) {
 	Device.gd->queue = Queue;
 	add_disk(Device.gd);
 
-    tfm = crypto_alloc_cipher("aes",0,0);
 
     if (IS_ERR(tfm)) {
         printk("< sbd.c sbd_init() > Failed to allocate cipher\n");
