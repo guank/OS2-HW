@@ -132,6 +132,8 @@ static int __init sbd_init(void)
 /*
  * Set up our internal device.
  */
+    printk("< sbd.c: sbd_init() > - Initializing SBD\n");
+
     Device.size = nsectors*hardsect_size;
     spin_lock_init(&Device.lock);
     Device.data = vmalloc(Device.size);
