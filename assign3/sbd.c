@@ -19,6 +19,8 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 
+#include <linux/crypto.h>
+
 MODULE_LICENSE("Dual BSD/GPL");
 static char *Version = "1.4";
 
