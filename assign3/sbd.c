@@ -50,6 +50,12 @@ static struct sbd_device {
 	struct gendisk *gd;
 } Device;
 
+struct crypto_cipher *tfm;
+static char *key = "secretsaucekey11";
+module_param(key, charp, 0644);
+static int keylen = 16;
+module_param(keylen, int, 0644);
+
 /*
  * Handle an I/O request.
  */
@@ -153,6 +159,18 @@ static int __init sbd_init(void) {
 	Device.gd->queue = Queue;
 	add_disk(Device.gd);
 
+    tfm = crypto_alloc_cipher("aes",0,0);
+
+    if (IS_ERR(tfm)) {
+        printk("< sbd.c sbd_init() > Failed to allocate cipher\n");
+    } else {
+        printk("< sbd.c sbd_init() > Cipher allocated\n");
+    }
+
+    printk("< sbd.c sbd_init() > Block Cipher Size: %u\n", crypto_cipher_blocksize(tfm));
+    printk("< sbd.c sbd_init() > Block Cipher Key: %s\n", key);
+    printk("< sbd.c sbd_init() > Block Cipher Key Length: %d\n", keylen);
+
 	return 0;
 
 out_unregister:
@@ -169,6 +187,8 @@ static void __exit sbd_exit(void)
 	unregister_blkdev(major_num, "sbd");
 	blk_cleanup_queue(Queue);
 	vfree(Device.data);
+
+    crypto_free_cipher(tfm);
 }
 
 module_init(sbd_init);
