@@ -76,6 +76,8 @@
 
 #include <linux/syscalls.h>
 
+unsigned long slob_page_n = 0;
+
 asmlinkage long sys_slob_used(void) {
 	return 0;
 }
@@ -111,6 +113,7 @@ typedef struct slob_block slob_t;
 static LIST_HEAD(free_slob_small);
 static LIST_HEAD(free_slob_medium);
 static LIST_HEAD(free_slob_large);
+/*These are the lists we're gonnna have to count through for sys_slob_free.*/
 
 /*
  * slob_page_free: true for pages on free_slob_pages list.
@@ -337,6 +340,9 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
 		set_slob_page_free(sp, slob_list);
 		b = slob_page_alloc(sp, size, align);
+
+		slob_page_n++; /*Page allocation was succesful so increment for syscall. */
+
 		BUG_ON(!b);
 		spin_unlock_irqrestore(&slob_lock, flags);
 	}
@@ -373,6 +379,7 @@ static void slob_free(void *block, int size)
 		__ClearPageSlab(sp);
 		page_mapcount_reset(sp);
 		slob_free_pages(b, 0);
+		slob_page_n--; /*b was just free'd so lets decrement for the syscall.*/
 		return;
 	}
 
