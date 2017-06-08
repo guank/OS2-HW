@@ -75,6 +75,15 @@
 #include "slab.h"
 
 #include <linux/syscalls.h>
+
+asmlinkage long sys_slob_used(void) {
+	return 0;
+}
+
+asmlinkage long sys_slob_free(void) {
+	return 0;
+}
+
 /*
  * slob_block has a field 'units', which indicates size of block if +ve,
  * or offset of next block if -ve (in SLOB_UNITs).
@@ -419,14 +428,6 @@ static void slob_free(void *block, int size)
 	}
 out:
 	spin_unlock_irqrestore(&slob_lock, flags);
-}
-
-asmlinkage long sys_slob_used(void){
-	return 0;
-}
-
-asmlinkage long sys_slob_free(void){
-	return 0;
 }
 
 /*
