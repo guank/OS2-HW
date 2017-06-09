@@ -78,14 +78,6 @@
 
 unsigned long slob_page_n = 0;
 
-asmlinkage long sys_slob_used(void) {
-	return 0;
-}
-
-asmlinkage long sys_slob_free(void) {
-	return 0;
-}
-
 /*
  * slob_block has a field 'units', which indicates size of block if +ve,
  * or offset of next block if -ve (in SLOB_UNITs).
@@ -137,6 +129,33 @@ static inline void clear_slob_page_free(struct page *sp)
 
 #define SLOB_UNIT sizeof(slob_t)
 #define SLOB_UNITS(size) DIV_ROUND_UP(size, SLOB_UNIT)
+
+asmlinkage long sys_slob_used(void) {
+	/* page_n is the total pages in use. Size must be factored in.*/	
+	long used = SLOB_UNITS(PAGE_SIZE) * slob_page_n;
+	return used;
+}
+
+asmlinkage long sys_slob_free(void) {
+	/*static LIST_HEAD(free_slob_small);
+	static LIST_HEAD(free_slob_medium);
+	static LIST_HEAD(free_slob_large);*/
+	long avalible = 0;
+	struct list_head * head = &free_slob_large;
+	struct page * pg = NULL;
+	list_for_each_entry(pg, head, list){
+		avalible += pg->units;
+	}
+	head = &free_slob_medium;
+	list_for_each_entry(pg, head, list){
+		avalible += pg->units;
+	}
+	head = &free_slob_small;
+	list_for_each_entry(pg, head, list){
+		avalible += pg->units;
+	}
+	return avalible;
+}
 
 /*
  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
