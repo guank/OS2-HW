@@ -1,0 +1,209 @@
+From e653f49a164ad9a126ab3d9c43721c19d1ecca16 Mon Sep 17 00:00:00 2001
+From: George Crary <craryg@os-class.engr.oregonstate.edu>
+Date: Thu, 8 Jun 2017 23:16:29 -0700
+Subject: [PATCH] Make best fit patch
+
+---
+ arch/x86/syscalls/syscall_32.tbl |  2 +
+ include/linux/syscalls.h         |  3 +-
+ mm/Makefile                      |  2 +-
+ mm/slob.c                        | 88 ++++++++++++++++++++++++++++++++++------
+ 4 files changed, 80 insertions(+), 15 deletions(-)
+
+diff --git a/arch/x86/syscalls/syscall_32.tbl b/arch/x86/syscalls/syscall_32.tbl
+index 96bc506..05cff3d 100644
+--- a/arch/x86/syscalls/syscall_32.tbl
++++ b/arch/x86/syscalls/syscall_32.tbl
+@@ -359,3 +359,5 @@
+ 350	i386	finit_module		sys_finit_module
+ 351	i386	sched_setattr		sys_sched_setattr
+ 352	i386	sched_getattr		sys_sched_getattr
++353	i386	slob_free		sys_slob_free
++354	i386	slob_used		sys_slob_used
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index a747a77..a8dff34 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -327,7 +327,6 @@ asmlinkage long sys_init_module(void __user *umod, unsigned long len,
+ 				const char __user *uargs);
+ asmlinkage long sys_delete_module(const char __user *name_user,
+ 				unsigned int flags);
+-
+ #ifdef CONFIG_OLD_SIGSUSPEND
+ asmlinkage long sys_sigsuspend(old_sigset_t mask);
+ #endif
+@@ -855,4 +854,6 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
+ asmlinkage long sys_kcmp(pid_t pid1, pid_t pid2, int type,
+ 			 unsigned long idx1, unsigned long idx2);
+ asmlinkage long sys_finit_module(int fd, const char __user *uargs, int flags);
++asmlinkage long sys_slob_free(void);
++asmlinkage long sys_slob_used(void);
+ #endif
+diff --git a/mm/Makefile b/mm/Makefile
+index c561f1f..db02985 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -19,7 +19,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   compaction.o balloon_compaction.o vmacache.o \
+ 			   interval_tree.o list_lru.o $(mmu-y)
+ 
+-obj-y += init-mm.o
++obj-y += init-mm.o slob.o 
+ 
+ ifdef CONFIG_NO_BOOTMEM
+ 	obj-y		+= nobootmem.o
+diff --git a/mm/slob.c b/mm/slob.c
+index 4bf8809..e8225e8 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -73,6 +73,11 @@
+ #include <linux/atomic.h>
+ 
+ #include "slab.h"
++
++#include <linux/syscalls.h>
++
++unsigned long slob_page_n = 0;
++
+ /*
+  * slob_block has a field 'units', which indicates size of block if +ve,
+  * or offset of next block if -ve (in SLOB_UNITs).
+@@ -100,6 +105,7 @@ typedef struct slob_block slob_t;
+ static LIST_HEAD(free_slob_small);
+ static LIST_HEAD(free_slob_medium);
+ static LIST_HEAD(free_slob_large);
++/*These are the lists we're gonnna have to count through for sys_slob_free.*/
+ 
+ /*
+  * slob_page_free: true for pages on free_slob_pages list.
+@@ -124,6 +130,35 @@ static inline void clear_slob_page_free(struct page *sp)
+ #define SLOB_UNIT sizeof(slob_t)
+ #define SLOB_UNITS(size) DIV_ROUND_UP(size, SLOB_UNIT)
+ 
++asmlinkage long sys_slob_used(void) {
++	/* page_n is the total pages in use. Size must be factored in.*/	
++	long used = SLOB_UNITS(PAGE_SIZE) * slob_page_n;
++	return used;
++}
++
++asmlinkage long sys_slob_free(void) {
++	/*static LIST_HEAD(free_slob_small);
++	static LIST_HEAD(free_slob_medium);
++	static LIST_HEAD(free_slob_large);*/
++	long avalible = 0;
++	struct list_head * head = &free_slob_large;
++	struct page * pg = NULL;
++	list_for_each_entry(pg, head, list){
++		avalible += pg->units;
++	}
++	head = &free_slob_medium;
++	list_for_each_entry(pg, head, list){
++		avalible += pg->units;
++	}
++	head = &free_slob_small;
++	list_for_each_entry(pg, head, list){
++		avalible += pg->units;
++	}
++	return avalible;
++}
++
++
++
+ /*
+  * struct slob_rcu is inserted at the tail of allocated slob blocks, which
+  * were created with a SLAB_DESTROY_BY_RCU slab. slob_rcu is used to free
+@@ -268,7 +303,11 @@ static void *slob_page_alloc(struct page *sp, size_t size, int align)
+ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ {
+ 	struct page *sp;
++	struct page *spBest = NULL;
+ 	struct list_head *prev;
++	int firstIter = 0;
++	int finds = 0;
++	struct list_head * originalTail;
+ 	struct list_head *slob_list;
+ 	slob_t *b = NULL;
+ 	unsigned long flags;
+@@ -283,6 +322,11 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 	spin_lock_irqsave(&slob_lock, flags);
+ 	/* Iterate through each partially free page, try to find room */
+ 	list_for_each_entry(sp, slob_list, list) {
++		int found = 0;
++		if(!firstIter){
++			originalTail = slob_list->prev;
++			spBest = sp;
++		}
+ #ifdef CONFIG_NUMA
+ 		/*
+ 		 * If there's a node specification, search for a partial
+@@ -292,22 +336,36 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 			continue;
+ #endif
+ 		/* Enough room on this page? */
+-		if (sp->units < SLOB_UNITS(size))
++		if (sp->units < SLOB_UNITS(size)){
+ 			continue;
++		}else{
++			if(spBest->units > sp->units){
++				spBest = sp;
++				finds++;
++				found = 1;
++			}else {
++				found = 0;
++			}
++		}
+ 
+-		/* Attempt to alloc */
+-		prev = sp->list.prev;
+-		b = slob_page_alloc(sp, size, align);
+-		if (!b)
++		if(found && finds >= 15){
++
++			/* Attempt to alloc */
++			prev = spBest->list.prev;
++			b = slob_page_alloc(spBest, size, align);
++			if (!b)
++				continue;
++
++			/* Improve fragment distribution and reduce our average
++			 * search time by starting our next search here. (see
++			 * Knuth vol 1, sec 2.5, pg 449) */
++			if (prev != slob_list->prev &&
++					slob_list->next != prev->next)
++				list_move_tail(slob_list, prev->next);
++			break;
++		}else{
+ 			continue;
+-
+-		/* Improve fragment distribution and reduce our average
+-		 * search time by starting our next search here. (see
+-		 * Knuth vol 1, sec 2.5, pg 449) */
+-		if (prev != slob_list->prev &&
+-				slob_list->next != prev->next)
+-			list_move_tail(slob_list, prev->next);
+-		break;
++		}
+ 	}
+ 	spin_unlock_irqrestore(&slob_lock, flags);
+ 
+@@ -326,6 +384,9 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
+ 		set_slob(b, SLOB_UNITS(PAGE_SIZE), b + SLOB_UNITS(PAGE_SIZE));
+ 		set_slob_page_free(sp, slob_list);
+ 		b = slob_page_alloc(sp, size, align);
++
++		slob_page_n++; /*Page allocation was succesful so increment for syscall. */
++
+ 		BUG_ON(!b);
+ 		spin_unlock_irqrestore(&slob_lock, flags);
+ 	}
+@@ -362,6 +423,7 @@ static void slob_free(void *block, int size)
+ 		__ClearPageSlab(sp);
+ 		page_mapcount_reset(sp);
+ 		slob_free_pages(b, 0);
++		slob_page_n--; /*b was just free'd so lets decrement for the syscall.*/
+ 		return;
+ 	}
+ 
+-- 
+1.7.12.4
+
